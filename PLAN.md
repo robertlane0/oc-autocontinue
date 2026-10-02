@@ -41,6 +41,11 @@ ends the loop early.
 `ctx.session.prompt` with the fixed message and `delivery: "steer"`. It returns as soon as
 the message is admitted, so the event loop is never blocked on a model turn.
 
+A subagent runs in a child session and reports `session.execution.succeeded` like any other,
+so the prompt is skipped when the session has a `parentID`. The parent already resumes by
+itself once the child reports back; continuing the child too would duplicate that work and
+never settle. The check costs one `ctx.session.get`, taken only on the send path.
+
 ### Command
 
 `/autocontinue` is registered with `ctx.command.transform`. Arguments arrive as the command
@@ -55,7 +60,8 @@ invocation's prompt text:
 
 Status is reported as a synthetic session message with `resume: false`, the mechanism
 OpenCode already uses for plugin-authored notices. Clients render its `description` as a
-one-line notice, and it reaches the model on the next turn.
+one-line notice. Because the session is not woken, the notice stays in the inbox until the
+next turn, which is also when the model reads it.
 
 ### State
 
@@ -89,7 +95,11 @@ test/             bun tests
 ## Verification
 
 1. `bun install`, `bun test`, `bunx tsc --noEmit`.
-2. Load the plugin from a scratch project and confirm `opencode plugin list` resolves it.
-3. Drive a child `opencode serve` over its HTTP API: toggle the command and read back the
-   synthetic notice, confirm a turn whose reply is `Done.` adds no continue message, and
-   confirm a turn whose reply is anything else does.
+2. Load the plugin from a scratch project and confirm it resolves over `/api/plugin` and that
+   `/autocontinue` appears in `/api/command`.
+3. Drive a child `opencode serve` over its HTTP API, asserting against the server's own
+   event stream: the off state, both arguments and the bare toggle, a `Done.` reply, an
+   ordinary reply, a manual interrupt, and a finished subagent. A restart confirms the stored
+   toggle is what the plugin loads with.
+
+Confirmed against `opencode serve` 2.0.21.

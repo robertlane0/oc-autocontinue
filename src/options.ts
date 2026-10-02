@@ -13,8 +13,6 @@ export interface Options {
 
 export type RawOptions = Record<string, unknown>
 
-export class OptionsError extends Error {}
-
 function text(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined
   const trimmed = value.trim()
@@ -30,12 +28,19 @@ function flag(value: unknown): boolean | undefined {
   if (typeof value === "boolean") return value
   const normalized = text(value)?.toLowerCase()
   if (normalized === undefined) return undefined
-  if (["1", "true", "yes", "on"].includes(normalized)) return true
-  if (["0", "false", "no", "off"].includes(normalized)) return false
+  if (TRUTHY.includes(normalized)) return true
+  if (FALSY.includes(normalized)) return false
   return undefined
 }
 
-/** Options win over environment variables; environment fills the gaps. */
+const TRUTHY = ["1", "true", "yes", "on"]
+const FALSY = ["0", "false", "no", "off"]
+
+/**
+ * Options win over environment variables; environment fills the gaps. An unrecognized value
+ * falls back to the default rather than failing: a plugin that refuses to load is worse than
+ * one that starts in its default state.
+ */
 export function resolve(raw: RawOptions = {}): Options {
   const enabled = flag(raw.enabled) ?? flag(env("OC_AUTOCONTINUE_ENABLED")) ?? false
   const message = text(raw.message) ?? env("OC_AUTOCONTINUE_MESSAGE") ?? MESSAGE

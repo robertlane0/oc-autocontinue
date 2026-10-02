@@ -40,6 +40,9 @@ A turn ends at `session.execution.succeeded`. A turn you stop yourself (`Esc`) e
 `session.execution.interrupted` and never continues, and a failed turn never continues
 either, so an error cannot start a loop.
 
+A subagent runs in its own session and reports the same finished-turn event, but it is never
+continued: the session it belongs to already resumes when the subagent reports back.
+
 `Done.` is read from the model's text for that turn, so a `Done.` left over from earlier in
 the session cannot end a later turn. The comparison ignores case, surrounding quotes,
 markdown emphasis and trailing punctuation, so `Done.`, `**done!**` and `"Done."` all stop

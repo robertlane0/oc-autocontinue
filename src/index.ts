@@ -1,5 +1,5 @@
 import { Plugin } from "@opencode/plugin"
-import { OptionsError, resolve } from "./options"
+import { resolve, type Options } from "./options"
 import { Monitor } from "./state"
 
 const COMMAND = "autocontinue"
@@ -22,6 +22,10 @@ async function announce(ctx: Plugin.Context, sessionID: string, text: string, de
 
 async function send(ctx: Plugin.Context, sessionID: string, message: string) {
   try {
+    // A subagent is driven by its parent, which resumes on its own once the child reports
+    // back. Continuing the child as well would duplicate that work and never settle.
+    const session = await ctx.session.get({ sessionID })
+    if (session.parentID) return
     await ctx.session.prompt({ sessionID, text: message, delivery: "steer" })
   } catch (error) {
     report("continue message not sent", error)
@@ -31,13 +35,7 @@ async function send(ctx: Plugin.Context, sessionID: string, message: string) {
 export default Plugin.define({
   id: SOURCE,
   async setup(ctx) {
-    let options
-    try {
-      options = resolve(ctx.options)
-    } catch (error) {
-      report(error instanceof OptionsError ? error.message : "invalid options", error)
-      return
-    }
+    const options: Options = resolve(ctx.options)
 
     // The command is the only control, so a stored choice outranks the configured default.
     let enabled = options.enabled
@@ -66,7 +64,8 @@ export default Plugin.define({
           } catch (error) {
             report("setting not saved", error)
           }
-          await announce(ctx, sessionID, `Autocontinue is ${enabled ? "on" : "off"}.`, `Autocontinue ${enabled ? "on" : "off"}`)
+          const status = enabled ? "on" : "off"
+          await announce(ctx, sessionID, `Autocontinue is ${status}.`, `Autocontinue ${status}`)
         },
       }),
     )
