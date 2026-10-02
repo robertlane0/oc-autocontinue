@@ -40,8 +40,8 @@ A turn ends at `session.execution.succeeded`. A turn you stop yourself (`Esc`) e
 `session.execution.interrupted` and never continues, and a failed turn never continues
 either, so an error cannot start a loop.
 
-A subagent runs in its own session and reports the same finished-turn event, but it is never
-continued: the session it belongs to already resumes when the subagent reports back.
+A subagent runs in a child session and reports the same finished-turn event, but a child
+session is never continued: its parent already resumes by itself once the child reports back.
 
 `Done.` is read from the model's text for that turn, so a `Done.` left over from earlier in
 the session cannot end a later turn. The comparison ignores case, surrounding quotes,
